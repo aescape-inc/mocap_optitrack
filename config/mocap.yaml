@@ -1,5 +1,5 @@
 rigid_bodies:
-    "OptiTrackLink8":
+    "OptitrackLink8":
         pose: OptiTrackLink8/pose
         pose2d: OptiTrackLink8/ground_pose
         odom: OptiTrackLink8/Odom
