@@ -1,9 +1,15 @@
 rigid_bodies:
-    "Rigid1":
+    "1":
         pose: Rigid1/pose
         pose2d: Rigid1/ground_pose
         odom: Rigid1/Odom
-        child_frame_id: rigid1_frame
+        child_frame_id: optitrack_link8
+        parent_frame_id: optitrack_world
+    "2":
+        pose: Rigid1/pose
+        pose2d: Rigid1/ground_pose
+        odom: Rigid1/Odom
+        child_frame_id: optitrack_teach_handle
         parent_frame_id: optitrack_world
 
 optitrack_config:
