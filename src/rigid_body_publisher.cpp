@@ -92,134 +92,135 @@ nav_msgs::Odometry getRosOdom(RigidBody const& body, const Version& coordinatesV
     OdometryMsg.pose.pose.position.y = -body.pose.position.z;
     OdometryMsg.pose.pose.position.z = body.pose.position.y;
 
-    OdometryMsg.pose.pose.orientation.x = body.pose.orientation.x;
-    OdometryMsg.pose.pose.orientation.y = -body.pose.orientation.z;
-    OdometryMsg.pose.pose.orientation.z = body.pose.orientation.y;
-    OdometryMsg.pose.pose.orientation.w = body.pose.orientation.w;
-  }
-  return OdometryMsg;
-}
-}  // namespace utilities
+        OdometryMsg.pose.pose.orientation.x = body.pose.orientation.x;
+        OdometryMsg.pose.pose.orientation.y = -body.pose.orientation.z;
+        OdometryMsg.pose.pose.orientation.z = body.pose.orientation.y;
+        OdometryMsg.pose.pose.orientation.w = body.pose.orientation.w;
+      }
+      return OdometryMsg;
+    }
+  } // namespace utilities
 
-RigidBodyPublisher::RigidBodyPublisher(ros::NodeHandle &nh,
-                                       Version const& natNetVersion,
-                                       PublisherConfiguration const& config) :
-  config(config)
-{
-  if (config.publishPose)
-    posePublisher = nh.advertise<geometry_msgs::PoseStamped>(config.poseTopicName, 1000);
-
-  if (config.publishPose2d)
-    pose2dPublisher = nh.advertise<geometry_msgs::Pose2D>(config.pose2dTopicName, 1000);
-
-  if (config.publishOdom)
-    odomPublisher = nh.advertise<nav_msgs::Odometry>(config.odomTopicName, 1000);
-
-  // Motive 1.7+ uses a new coordinate system
-  // natNetVersion = (natNetVersion >= Version("1.7"));
-  coordinatesVersion = natNetVersion;
-}
-
-RigidBodyPublisher::~RigidBodyPublisher()
-{
-}
-
-void RigidBodyPublisher::publish(ros::Time const& time, RigidBody const& body)
-{
-  // don't do anything if no new data was provided
-  if (!body.hasValidData())
+  RigidBodyPublisher::RigidBodyPublisher(ros::NodeHandle &nh,
+                                         Version const &natNetVersion,
+                                         PublisherConfiguration const &config) : config(config)
   {
-    return;
+    if (config.publishPose)
+      posePublisher = nh.advertise<geometry_msgs::PoseStamped>(config.poseTopicName, 1000);
+
+    if (config.publishPose2d)
+      pose2dPublisher = nh.advertise<geometry_msgs::Pose2D>(config.pose2dTopicName, 1000);
+
+    if (config.publishOdom)
+      odomPublisher = nh.advertise<nav_msgs::Odometry>(config.odomTopicName, 1000);
+
+    // Motive 1.7+ uses a new coordinate system
+    // natNetVersion = (natNetVersion >= Version("1.7"));
+    coordinatesVersion = natNetVersion;
   }
 
-  // NaN?
-  if (body.pose.position.x != body.pose.position.x)
+  RigidBodyPublisher::~RigidBodyPublisher()
   {
-    return;
   }
 
-  geometry_msgs::PoseStamped pose = utilities::getRosPose(body, coordinatesVersion);
-  nav_msgs::Odometry odom =  utilities::getRosOdom(body, coordinatesVersion);
-
-  pose.header.stamp = time;
-  odom.header.stamp = time;
-
-  if (config.publishPose)
+  void RigidBodyPublisher::publish(ros::Time const &time, RigidBody const &body)
   {
-    pose.header.frame_id = config.parentFrameId;
-    posePublisher.publish(pose);
-  }
-
-  tf::Quaternion q(pose.pose.orientation.x,
-                   pose.pose.orientation.y,
-                   pose.pose.orientation.z,
-                   pose.pose.orientation.w);
-
-  if (config.publishOdom)
-  {
-    odom.header.frame_id = config.parentFrameId;
-    odom.child_frame_id = config.childFrameId;
-    odomPublisher.publish(odom);
-  }
-  if (config.publishOdom)
-  {
-    odom.header.frame_id = config.parentFrameId;
-    odom.child_frame_id = config.childFrameId;
-    odomPublisher.publish(odom);
-  }
-  // publish 2D pose
-  if (config.publishPose2d)
-  {
-    geometry_msgs::Pose2D pose2d;
-    pose2d.x = pose.pose.position.x;
-    pose2d.y = pose.pose.position.y;
-    pose2d.theta = tf::getYaw(q);
-    pose2dPublisher.publish(pose2d);
-  }
-
-  if (config.publishTf)
-  {
-    // publish transform
-    tf::Transform transform;
-    transform.setOrigin(tf::Vector3(pose.pose.position.x,
-                                    pose.pose.position.y,
-                                    pose.pose.position.z));
-
-    // Handle different coordinate systems (Arena vs. rviz)
-    transform.setRotation(q);
-    tfPublisher.sendTransform(tf::StampedTransform(transform,
-                              time,
-                              config.parentFrameId,
-                              config.childFrameId));
-  }
-}
-
-
-RigidBodyPublishDispatcher::RigidBodyPublishDispatcher(
-  ros::NodeHandle &nh,
-  Version const& natNetVersion,
-  PublisherConfigurations const& configs)
-{
-  for (auto const& config : configs)
-  {
-    rigidBodyPublisherMap[config.rigidBodyId] =
-      RigidBodyPublisherPtr(new RigidBodyPublisher(nh, natNetVersion, config));
-  }
-}
-
-void RigidBodyPublishDispatcher::publish(
-  ros::Time const& time,
-  std::vector<RigidBody> const& rigidBodies)
-{
-  for (auto const& rigidBody : rigidBodies)
-  {
-    auto const& iter = rigidBodyPublisherMap.find(rigidBody.bodyId);
-
-    if (iter != rigidBodyPublisherMap.end())
+    // don't do anything if no new data was provided
+    if (!body.hasValidData())
     {
-      (*iter->second).publish(time, rigidBody);
+      return;
+    }
+
+    // NaN?
+    if (body.pose.position.x != body.pose.position.x)
+    {
+      return;
+    }
+
+    geometry_msgs::PoseStamped pose = utilities::getRosPose(body, coordinatesVersion);
+    nav_msgs::Odometry odom = utilities::getRosOdom(body, coordinatesVersion);
+
+    pose.header.stamp = time;
+    odom.header.stamp = time;
+
+    if (config.publishPose)
+    {
+
+      pose.header.frame_id = config.parentFrameId;
+      posePublisher.publish(pose);
+    }
+
+    tf::Quaternion q(pose.pose.orientation.x,
+                     pose.pose.orientation.y,
+                     pose.pose.orientation.z,
+                     pose.pose.orientation.w);
+
+    if (config.publishOdom)
+    {
+      odom.header.frame_id = config.parentFrameId;
+      odom.child_frame_id = config.childFrameId;
+      odomPublisher.publish(odom);
+    }
+    if (config.publishOdom)
+    {
+      odom.header.frame_id = config.parentFrameId;
+      odom.child_frame_id = config.childFrameId;
+      odomPublisher.publish(odom);
+    }
+    // publish 2D pose
+    if (config.publishPose2d)
+    {
+      geometry_msgs::Pose2D pose2d;
+      pose2d.x = pose.pose.position.x;
+      pose2d.y = pose.pose.position.y;
+      pose2d.theta = tf::getYaw(q);
+      pose2dPublisher.publish(pose2d);
+    }
+
+    if (config.publishTf)
+    {
+      // ROS_INFO("publish tf, %s:%s", config.parentFrameId.c_str(), config.childFrameId.c_str());
+
+      // publish transform
+      tf::Transform transform;
+      transform.setOrigin(tf::Vector3(pose.pose.position.x,
+                                      pose.pose.position.y,
+                                      pose.pose.position.z));
+
+      // Handle different coordinate systems (Arena vs. rviz)
+      transform.setRotation(q);
+      tfPublisher.sendTransform(tf::StampedTransform(transform,
+                                                     time,
+                                                     config.parentFrameId,
+                                                     config.childFrameId));
     }
   }
-}
 
-}  // namespace mocap_optitrack
+  RigidBodyPublishDispatcher::RigidBodyPublishDispatcher(
+      ros::NodeHandle &nh,
+      Version const &natNetVersion,
+      PublisherConfigurations const &configs)
+  {
+    for (auto const &config : configs)
+    {
+      rigidBodyPublisherMap[config.rigidBodyId] =
+          RigidBodyPublisherPtr(new RigidBodyPublisher(nh, natNetVersion, config));
+    }
+  }
+
+  void RigidBodyPublishDispatcher::publish(
+      ros::Time const &time,
+      std::vector<RigidBody> const &rigidBodies)
+  {
+    for (auto const &rigidBody : rigidBodies)
+    {
+      auto const &iter = rigidBodyPublisherMap.find(rigidBody.bodyId);
+
+      if (iter != rigidBodyPublisherMap.end())
+      {
+        (*iter->second).publish(time, rigidBody);
+      }
+    }
+  }
+
+} // namespace mocap_optitrack
